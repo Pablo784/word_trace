@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WordTrace</title>
+  <script src="https://cdn.jsdelivr.net/npm/@remix-gg/sdk@latest/dist/index.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rouge+Script&family=Open+Sans:wght@400;600;700;800&family=Saira:wght@400;600;700;800&display=swap');
+
+    :root {
+      --bg1: #e8f3f1;
+      --bg2: #d9e7f7;
+      --bg3: #f4efe6;
+      --ink: #20313a;
+      --soft: rgba(255,255,255,0.72);
+      --accent: #6aa6a1;
+      --accent2: #8a9fd1;
+      --gold: #d9b46b;
+      --found: #7bc7a4;
+      --shadow: 0 12px 30px rgba(32,49,58,0.12);
+      --cell-bg: rgba(255,255,255,0.76);
+      --cell-active: rgba(217, 180, 107, 0.42);
+      --cell-found: rgba(123, 199, 164, 0.5);
+      --overlay-bg: rgba(236,244,246,0.5);
+      --card-bg: rgba(255,255,255,0.82);
+    }
+    
+    .dark-mode {
+      --bg1: #1a2332;
+      --bg2: #1e2a3d;
+      --bg3: #243044;
+      --ink: #f0f5f8;
+      --soft: rgba(30,42,61,0.9);
+      --accent: #7ab8b2;
+      --accent2: #9bb0e0;
+      --gold: #e5c47a;
+      --found: #8cd4b0;
+      --shadow: 0 12px 30px rgba(0,0,0,0.4);
+      --cell-bg: rgba(55,70,90,0.9);
+      --cell-active: rgba(229, 196, 122, 0.6);
+      --cell-found: rgba(140, 212, 176, 0.6);
+      --overlay-bg: rgba(15,25,40,0.8);
+      --card-bg: rgba(40,55,75,0.95);
+    }
+    
+    .dark-mode .translation,
+    .dark-mode .definition,
+    .dark-mode .sentence {
+      color: #c8d5dc;
+    }
+    
+    .dark-mode .sentence em {
+      color: #a8d4c4;
+    }
+    
+    .dark-mode .cell.found {
+      color: #f0f5f8;
+      background: rgba(45, 85, 70, 0.95);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.25);
+    }
+    
+    .dark-mode .wordChip {
+      color: #e7eef3;
+      background: rgba(58, 74, 97, 0.82);
+      border-color: rgba(255,255,255,0.1);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .dark-mode .wordChip.found {
+      color: #f0f5f8;
+      background: rgba(45, 85, 70, 0.92);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .dark-mode .actionButton,
+    .dark-mode .actionButton.secondary,
+    .dark-mode #pauseButton,
+    .dark-mode #scrambleButton,
+    .dark-mode #levelBox,
+    .dark-mode #optionsThemeToggle {
+      background: rgba(58, 74, 97, 0.82);
+      color: #e7eef3;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), var(--shadow);
+    }
+    
+    .dark-mode .levelPopup {
+      background: rgba(40,55,75,0.98);
+      color: #f0f5f8;
+    }
+
+    .rouge-script-regular {
+      font-family: "Rouge Script", cursive !important;
+      font-weight: 400;
+      font-style: normal;
+    }
+    
+    .open-sans {
+      font-family: "Open Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 400;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+    }
+    
+    /* Apply open-sans to text elements only, not word list, HUD, or grid letters */
+    .translation,
+    .definition,
+    .sentence {
+      font-family: "Open Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 400;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+    }
+
+    .tag {
+      font-family: "Open Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+    }
+    
+    /* Unique letter-finding interaction: tap-to-select mode */
+    .grid.tap-mode .cell {
+      cursor: pointer;
+    }
+    
+    .grid.tap-mode .cell.selected {
+      background: var(--cell-active);
+      box-shadow: 0 4px 12px rgba(217, 180, 107, 0.35), 0 0 0 2px rgba(217, 180, 107, 0.4);
+    }
+
+    .dark-mode .lesson,
+    .dark-mode .hud {
+      background: linear-gradient(180deg, rgba(48,64,86,0.96), rgba(35,49,68,0.94));
+      border-color: rgba(255,255,255,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    
+    .how-to-bullet {
+      width: 22px;
+      height: 22px;
+      margin-top: 2px;
+      flex: 0 0 auto;
+      content: url("graphics/small_black_bp.webp");
+    }
+
+    .dark-mode .how-to-bullet {
+      content: url("graphics/small_white_bp.webp");
+    }
+    
+    /* Compact HUD layout for small screens */
+    @media (max-width: 360px) {
+      .hud {
+        padding: 10px 12px;
+      }
+      .pill {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+    }
+
+    .dark-mode .definition,
+    .dark-mode .sentence {
+      background: rgba(255,255,255,0.06);
+    }
+    
+    .scramble-flash {
+      animation: scrambleFlash 0.5s ease-out;
+    }
+    
+    @keyframes scrambleFlash {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, var(--bg1), var(--bg2) 55%, var(--bg3));
+      touch-action: none;
+    }
+    body::before, body::after {
+      content: "";
+      position: fixed;
+      inset: auto;
+      border-radius: 50%;
+      filter: blur(10px);
+      pointer-events: none;
+      opacity: 0.35;
+    }
+    body::before {
+      width: 42vw;
+      height: 42vw;
+      left: -10vw;
+      top: 8vh;
+      background: rgba(152, 211, 191, 0.32);
+    }
+    body::after {
+      width: 36vw;
+      height: 36vw;
+      right: -8vw;
+      bottom: 10vh;
+      background: rgba(170, 192, 236, 0.35);
+    }
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 14px;
+      gap: 10px;
+    }
+    .hud {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      z-index: 2;
+      background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.68));
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), var(--shadow);
+      border-radius: 24px;
+      padding: 12px 14px;
+    }
+    .hudTop {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .hudStats {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .hudWords {
+      width: 100%;
+      padding: 8px 10px;
+      overflow-x: auto;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      background: rgba(255,255,255,0.4);
+      border-radius: 16px;
+    }
+    .hudWords::-webkit-scrollbar {
+      display: none;
+    }
+    .hudWords .wordsRow {
+      min-width: max-content;
+    }
+    .pill {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      background: var(--soft);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.45);
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+      padding: 8px 12px;
+      font-size: 13px;
+      line-height: 1.15;
+    }
+    .title {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      font-size: 36px;
+      line-height: 1;
+      letter-spacing: 0.01em;
+      animation: titlePulse 2s ease-in-out infinite;
+    }
+
+    #hintText {
+      min-height: 0;
+    }
+    
+    @keyframes titlePulse {
+      0%, 100% { transform: scale(1); opacity: 0.95; }
+      50% { transform: scale(1.02); opacity: 1; }
+    }
+    .subtitle {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 600;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      font-size: 20px;
+      opacity: 0.75;
+      margin-top: 2px;
+    }
+    .main {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      margin-top: 8px;
+    }
+    .panel {
+      background: var(--soft);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+    }
+    .lesson {
+      padding: 14px 16px;
+      min-height: 130px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.68));
+      border: 1px solid rgba(255,255,255,0.55);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .lessonTop {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .word {
+      font-family: "Open Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 800;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      font-size: 28px;
+      line-height: 1.1;
+      margin-bottom: 2px;
+    }
+    .translation {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.01em;
+      color: #426066;
+    }
+    .tag {
+      font-family: "Open Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(122, 167, 214, 0.16);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    .definition, .sentence {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 400;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      font-size: 15px;
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+      color: #314850;
+      margin-top: 4px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.42);
+      border-radius: 12px;
+    }
+    .open-sans-unique {
+      font-family: "Open Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 400;
+      font-style: normal;
+      font-variation-settings:
+        "wdth" 100;
+    }
+    
+    .sentence em { color: #557e78; font-style: normal; font-weight: 700; }
+    .gridWrap {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      gap: 10px;
+    }
+    .wordsRow {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 10px;
+      align-items: center;
+      min-width: max-content;
+    }
+    .wordChip {
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-family: "Open Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      font-size: 15px;
+      line-height: 1;
+      background: rgba(255,255,255,0.65);
+      border: 1px solid rgba(255,255,255,0.55);
+      transition: 0.18s ease;
+    }
+    .wordChip.found {
+      background: rgba(123, 199, 164, 0.28);
+      color: #1f5f43;
+      transform: scale(0.98);
+    }
+    .grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: clamp(14px, 3.5vw, 28px);
+      min-height: 0;
+      width: 100%;
+      max-width: 100%;
+      align-content: center;
+      justify-content: center;
+      user-select: none;
+      touch-action: none;
+      padding: clamp(16px, 4vw, 28px);
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .traceLayer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
+    }
+    .tracePath {
+      fill: none;
+      stroke: rgba(217, 180, 107, 0.42);
+      stroke-width: 20;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 4px 10px rgba(217, 180, 107, 0.22));
+    }
+    .tracePathOuter {
+      fill: none;
+      stroke: rgba(217, 180, 107, 0.18);
+      stroke-width: 30;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .dark-mode .tracePath {
+      stroke: rgba(229, 196, 122, 0.58);
+      filter: drop-shadow(0 4px 12px rgba(229, 196, 122, 0.2));
+    }
+    .dark-mode .tracePathOuter {
+      stroke: rgba(229, 196, 122, 0.2);
+    }
+    .cell {
+      position: relative;
+      aspect-ratio: 1;
+      min-width: 0;
+      width: 100%;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.38);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: clamp(12px, 2.8vw, 17px);
+      letter-spacing: 0.03em;
+      box-shadow: none;
+      overflow: hidden;
+      border: 1px solid rgba(32,49,58,0.08);
+    }
+    
+    .cell::before {
+      content: none;
+    }
+    .cell.active {
+      background: rgba(255,255,255,0.55);
+      box-shadow: 0 0 0 2px rgba(217, 180, 107, 0.3);
+    }
+    .cell.success-pulse {
+      background: var(--found);
+    }
+    .cell.found {
+      background: var(--cell-found);
+      color: #164131;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+      animation: foundPop 0.35s ease-out forwards;
+    }
+    @keyframes foundPop {
+      0% { transform: scale(1); box-shadow: 0 0 0 rgba(217, 180, 107, 0); }
+      30% { transform: scale(1.12); box-shadow: 0 0 12px rgba(217, 180, 107, 0.8); }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(217, 180, 107, 0); }
+    }
+    .footer {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 600;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      text-align: center;
+      width: 100%;
+    }
+    .levelPopup {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,255,255,0.95);
+      padding: 16px 24px;
+      border-radius: 16px;
+      font-weight: 800;
+      font-size: 20px;
+      color: #365760;
+      box-shadow: 0 12px 30px rgba(32,49,58,0.2);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .levelPopup.show {
+      opacity: 1;
+    }
+    #hintText {
+      text-align: center;
+      width: 100%;
+    }
+    .cta {
+      font-weight: 700;
+      color: #49656a;
+    }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--overlay-bg);
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.2s ease;
+      z-index: 5;
+      padding: 20px;
+    }
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .card {
+      width: min(100%, 360px);
+      padding: 22px;
+      border-radius: 28px;
+      background: var(--card-bg);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .bigScore {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 800;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      font-size: 42px;
+      margin: 8px 0;
+      color: var(--ink);
+    }
+    .actionButton {
+      font-family: "Saira", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-style: normal;
+      font-variation-settings: "wdth" 100;
+      width: 100%;
+      border: none;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 24px;
+      font-weight: 800;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: var(--shadow);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+      cursor: pointer;
+    }
+    .actionButton:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px rgba(32,49,58,0.2);
+      filter: brightness(1.05);
+    }
+    .actionButton:active {
+      transform: translateY(1px);
+      box-shadow: 0 8px 20px rgba(32,49,58,0.15);
+      filter: brightness(0.98);
+    }
+    .actionButton.secondary {
+      color: var(--ink);
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(255,255,255,0.55);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+      cursor: pointer;
+    }
+    .actionButton.secondary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px rgba(32,49,58,0.2);
+      filter: brightness(1.05);
+    }
+    .actionButton.secondary:active {
+      transform: translateY(1px);
+      box-shadow: 0 8px 20px rgba(32,49,58,0.15);
+      filter: brightness(0.98);
+    }
+    @media (max-height: 740px) {
+      .lesson { min-height: 108px; }
+      .word { font-size: 22px; }
+      .definition, .sentence { font-size: 12px; }
+      .grid { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="hud" id="hud" style="display: none;">
+      <div class="hudTop">
+        <div class="hudStats">
+          <div class="pill" id="timerBox">Moves<br><strong>11</strong></div>
+          <div class="pill" id="pauseButton" style="cursor: pointer; user-select: none; font-weight: 800; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0;">
+          <img id="pauseIcon" src="graphics/big_black_pause_ic.webp" alt="Pause" style="width: 24px; height: 24px;">
+        </div>
+          <div class="pill" id="scrambleButton" style="cursor: pointer; user-select: none; font-weight: 800; background: rgba(217, 180, 107, 0.3); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0;" title="Scramble Letters">
+            <img src="graphics/shuffle_icon_.webp" alt="Shuffle" style="width: 24px; height: 24px; display: block;">
+          </div>
+          <div class="pill" id="levelBox" style="cursor: default; user-select: none; font-weight: 800; min-width: 80px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0 12px;" title="Current Level">
+            <span id="levelText">Level 1</span>
+          </div>
+
+        </div>
+      </div>
+      <div class="pill hudWords">
+        <div class="wordsRow" id="wordList"></div>
+      </div>
+    </div>
+
+    <div class="main" id="gameArea" style="display: none;">
+      <div class="panel lesson" id="lessonCard">
+        <div class="lessonTop">
+          <div>
+            <div class="word" id="focusWord">...</div>
+            <div class="translation" id="focusTranslation"></div>
+          </div>
+          <div class="tag" id="progressTag">0/6 words found</div>
+        </div>
+        <div class="definition" id="focusDefinition"></div>
+        <div class="sentence" id="focusSentence"></div>
+      </div>
+
+      <div class="panel gridWrap">
+        <div class="grid" id="grid">
+          <svg class="traceLayer" id="traceLayer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path class="tracePathOuter" id="tracePathOuter"></path>
+            <path class="tracePath" id="tracePath"></path>
+          </svg>
+        </div>
+        <div class="footer" style="margin-top: 8px;">
+          <div id="hintText"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="pauseOverlay">
+    <div class="card">
+      <div class="title">Paused</div>
+      <div class="overlayActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <button class="actionButton" id="resumeButton">Resume</button>
+        <button class="actionButton secondary" id="pauseMainMenuButton">Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="howToPlayOverlay">
+    <div class="card">
+      <div class="title">How to Play</div>
+      <div class="definition" style="margin-top: 12px; text-align: left; font-size: 22px; line-height: 1.35;">
+        <div style="display: flex; align-items: flex-start; gap: 8px;">
+          <img class="how-to-bullet" alt="">
+          <span style="font-family: 'Saira', sans-serif; font-weight: 600;">Drag across letters to trace a word.</span>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 10px;">
+          <img class="how-to-bullet" alt="">
+          <span style="font-family: 'Saira', sans-serif; font-weight: 600;">You have limited moves; swipe wisely.</span>
+        </div>
+      </div>
+      <div class="overlayActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <button class="actionButton" id="backFromHowToButton">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="optionsOverlay">
+    <div class="card">
+      <div class="title">Options</div>
+      <div class="definition rouge-script-regular" style="margin-top: 12px; text-align: left; font-size: 22px; line-height: 1.35;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
+          <span style="font-family: 'Saira', sans-serif; font-weight: 600;">Theme</span>
+          <div class="pill" id="optionsThemeToggle" style="cursor: pointer; user-select: none; font-weight: 800; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; padding: 0;" title="Toggle theme">
+            <img id="optionsThemeIcon" src="graphics/sun_icon.webp" alt="Light mode icon" style="width: 24px; height: 24px; display: block;">
+          </div>
+        </div>
+      </div>
+      <div class="overlayActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <button class="actionButton" id="backFromOptionsButton">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="gameOverOverlay">
+    <div class="card">
+      <div class="title">Session Over</div>
+      <div class="bigScore" id="finalScore">0</div>
+      <div class="definition" id="finalMessage">Breathe in, learn a little, and tap Play Again in Remix.</div>
+      <div class="overlayActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <button class="actionButton" id="playAgainButton">Play Again</button>
+        <button class="actionButton secondary" id="mainMenuButton">Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay show" id="mainMenuOverlay">
+    <div class="card">
+      <div class="title">WordTrace</div>
+      <div class="subtitle">Connect. Discover. Learn.</div>
+      <div class="overlayActions" style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+        <button class="actionButton" id="startButton">Play</button>
+        <button class="actionButton secondary" id="menuHowToPlayButton">How to Play</button>
+        <button class="actionButton secondary" id="optionsButton">Options</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="levelPopup" id="levelPopup"></div>
+
+  <script>
+    const WORD_BANK = [
+      { en: 'CALM', es: 'CALMA', definition: 'A peaceful state without stress or agitation.', sentence: { en: 'After a deep breath, she felt <em>calm</em> before the test.', es: 'Después de respirar hondo, sintió <em>calma</em> antes del examen.' } },
+      { en: 'BREEZE', es: 'BRISA', definition: 'A light, gentle wind.', sentence: { en: 'A cool <em>breeze</em> moved through the open window.', es: 'Una <em>brisa</em> fresca entró por la ventana abierta.' } },
+      { en: 'OCEAN', es: 'OCÉANO', definition: 'A vast body of salt water covering much of Earth.', sentence: { en: 'The sound of the <em>ocean</em> helped him relax.', es: 'El sonido del <em>océano</em> le ayudó a relajarse.' } },
+      { en: 'LIGHT', es: 'LUZ', definition: 'Brightness that lets us see.', sentence: { en: 'Soft morning <em>light</em> filled the room.', es: 'La suave <em>luz</em> de la mañana llenó la habitación.' } },
+      { en: 'GARDEN', es: 'JARDÍN', definition: 'A place where flowers, herbs, or vegetables are grown.', sentence: { en: 'They walked slowly through the quiet <em>garden</em>.', es: 'Caminaron despacio por el tranquilo <em>jardín</em>.' } },
+      { en: 'MOON', es: 'LUNA', definition: 'The natural object that circles Earth and shines at night.', sentence: { en: 'The full <em>moon</em> reflected on the lake.', es: 'La <em>luna</em> llena se reflejaba en el lago.' } },
+      { en: 'CLOUD', es: 'NUBE', definition: 'A visible mass of tiny water drops in the sky.', sentence: { en: 'One white <em>cloud</em> drifted across the blue sky.', es: 'Una <em>nube</em> blanca cruzó el cielo azul.' } },
+      { en: 'RIVER', es: 'RÍO', definition: 'A large natural stream of water flowing across land.', sentence: { en: 'They sat beside the <em>river</em> and listened to the water.', es: 'Se sentaron junto al <em>río</em> y escucharon el agua.' } },
+      { en: 'PEACE', es: 'PAZ', definition: 'Freedom from conflict and a feeling of quiet balance.', sentence: { en: 'Music brought a sense of <em>peace</em> to the evening.', es: 'La música trajo una sensación de <em>paz</em> a la noche.' } },
+      { en: 'FOREST', es: 'BOSQUE', definition: 'A large area covered mainly with trees.', sentence: { en: 'Birdsong echoed through the green <em>forest</em>.', es: 'El canto de los pájaros resonó por el verde <em>bosque</em>.' } },
+      { en: 'SUNRISE', es: 'AMANECER', definition: 'The time in the morning when the sun first appears.', sentence: { en: 'The pink <em>sunrise</em> made the sky glow softly.', es: 'El rosado <em>amanecer</em> hizo brillar suavemente el cielo.' } },
+      { en: 'MOUNTAIN', es: 'MONTAÑA', definition: 'A very high hill with steep sides.', sentence: { en: 'They watched the mist roll over the <em>mountain</em>.', es: 'Vieron la niebla pasar sobre la <em>montaña</em>.' } },
+      { en: 'MEADOW', es: 'PRADERA', definition: 'A field of grass and wild flowers.', sentence: { en: 'Butterflies floated above the bright <em>meadow</em>.', es: 'Las mariposas flotaban sobre la brillante <em>pradera</em>.' } },
+      { en: 'BIRD', es: 'PÁJARO', definition: 'A feathered animal with wings and a beak.', sentence: { en: 'A small <em>bird</em> sang near the window.', es: 'Un pequeño <em>pájaro</em> cantó cerca de la ventana.' } },
+      { en: 'FLOWER', es: 'FLOR', definition: 'The colorful part of a plant that produces seeds.', sentence: { en: 'Each <em>flower</em> added color to the path.', es: 'Cada <em>flor</em> añadió color al sendero.' } },
+      { en: 'RAIN', es: 'LLUVIA', definition: 'Water falling from clouds in drops.', sentence: { en: 'Soft <em>rain</em> tapped gently on the roof.', es: 'La suave <em>lluvia</em> golpeó delicadamente el techo.' } },
+      { en: 'STONE', es: 'PIEDRA', definition: 'A small piece of rock.', sentence: { en: 'She skipped a flat <em>stone</em> across the pond.', es: 'Lanzó una <em>piedra</em> plana sobre el estanque.' } },
+      { en: 'STAR', es: 'ESTRELLA', definition: 'A bright object visible in the night sky.', sentence: { en: 'A single <em>star</em> shone before the others appeared.', es: 'Una sola <em>estrella</em> brilló antes de que aparecieran las demás.' } },
+      { en: 'WAVE', es: 'OLA', definition: 'A moving ridge of water on the surface of the sea.', sentence: { en: 'Each <em>wave</em> rolled gently onto the shore.', es: 'Cada <em>ola</em> llegó suavemente a la orilla.' } },
+      { en: 'SILENCE', es: 'SILENCIO', definition: 'A complete absence of sound.', sentence: { en: 'The early morning <em>silence</em> felt peaceful.', es: 'El <em>silencio</em> de la mañana se sentía tranquilo.' } },
+      { en: 'DREAM', es: 'SUEÑO', definition: 'Images and thoughts during sleep.', sentence: { en: 'She had a beautiful <em>dream</em> about flying.', es: 'Ella tuvo un hermoso <em>sueño</em> sobre volar.' } },
+      { en: 'SMILE', es: 'SONRISA', definition: 'A facial expression showing happiness.', sentence: { en: 'His <em>smile</em> made everyone feel welcome.', es: 'Su <em>sonrisa</em> hizo que todos se sintieran bienvenidos.' } },
+      { en: 'FRIEND', es: 'AMIGO', definition: 'A person you trust and enjoy being with.', sentence: { en: 'A good <em>friend</em> listens when you need to talk.', es: 'Un buen <em>amigo</em> escucha cuando necesitas hablar.' } },
+      { en: 'HOME', es: 'HOGAR', definition: 'The place where you live and feel safe.', sentence: { en: 'There\'s no place like <em>home</em>.', es: 'No hay lugar como el <em>hogar</em>.' } },
+      { en: 'BOOK', es: 'LIBRO', definition: 'Pages bound together with stories or information.', sentence: { en: 'She opened the <em>book</em> to her favorite chapter.', es: 'Ella abrió el <em>libro</em> en su capítulo favorito.' } },
+      { en: 'MUSIC', es: 'MÚSICA', definition: 'Sounds arranged in a pleasing pattern.', sentence: { en: 'The <em>music</em> filled the room with joy.', es: 'La <em>música</em> llenó la habitación de alegría.' } },
+      { en: 'LAUGH', es: 'RISA', definition: 'A sound expressing amusement or joy.', sentence: { en: 'Their <em>laugh</em> echoed through the hallway.', es: 'Su <em>risa</em> resonó por el pasillo.' } },
+      { en: 'WARM', es: 'CÁLIDO', definition: 'Having a comfortable temperature.', sentence: { en: 'The <em>warm</em> blanket made her cozy.', es: 'La manta <em>cálida</em> la hizo sentir acogedora.' } },
+      { en: 'COOL', es: 'FRESCO', definition: 'Slightly cold and refreshing.', sentence: { en: 'A <em>cool</em> breeze refreshed the summer air.', es: 'Una <em>fresca</em> brisa refrescó el aire de verano.' } }
+    ];
+
+    const GRID_SIZE = 9;
+    const ROUND_WORDS = 6;
+    const MAX_MOVES = 11;
+    const DIRECTIONS = [
+      [1, 0], [0, 1], [1, 1], [-1, 1],
+      [-1, 0], [0, -1], [-1, -1], [1, -1]
+    ];
+
+    const state = {
+      sdkReady: false,
+      safeArea: { top: 0, right: 0, bottom: 0, left: 0 },
+      viewContext: 'feed',
+      level: 1,
+      totalWordsFound: 0,
+      movesLeft: MAX_MOVES,
+      timerId: null,
+      gridLetters: [],
+      gridWords: [],
+      foundWords: new Set(),
+      selectedPath: [],
+      dragging: false,
+      ended: false,
+      muted: false,
+      paused: false,
+      showingHowToPlay: false,
+      lastOverlayBeforeHowTo: null,
+      wordFoundAudio: null,
+      timerStarted: false
+    };
+
+    const el = {
+      hud: document.getElementById('hud'),
+      optionsThemeToggle: document.getElementById('optionsThemeToggle'),
+      optionsThemeIcon: document.getElementById('optionsThemeIcon'),
+      focusWord: document.getElementById('focusWord'),
+      focusTranslation: document.getElementById('focusTranslation'),
+      focusDefinition: document.getElementById('focusDefinition'),
+      focusSentence: document.getElementById('focusSentence'),
+      progressTag: document.getElementById('progressTag'),
+      wordList: document.getElementById('wordList'),
+      grid: document.getElementById('grid'),
+      traceLayer: document.getElementById('traceLayer'),
+      tracePath: document.getElementById('tracePath'),
+      tracePathOuter: document.getElementById('tracePathOuter'),
+      hintText: document.getElementById('hintText'),
+      movesBox: document.getElementById('timerBox'),
+      pauseButton: document.getElementById('pauseButton'),
+      scrambleButton: document.getElementById('scrambleButton'),
+      pauseOverlay: document.getElementById('pauseOverlay'),
+      resumeButton: document.getElementById('resumeButton'),
+      howToPlayOverlay: document.getElementById('howToPlayOverlay'),
+      backFromHowToButton: document.getElementById('backFromHowToButton'),
+      optionsOverlay: document.getElementById('optionsOverlay'),
+      backFromOptionsButton: document.getElementById('backFromOptionsButton'),
+      overlay: document.getElementById('gameOverOverlay'),
+      finalScore: document.getElementById('finalScore'),
+      finalMessage: document.getElementById('finalMessage'),
+      levelPopup: document.getElementById('levelPopup'),
+      mainMenuOverlay: document.getElementById('mainMenuOverlay'),
+      startButton: document.getElementById('startButton'),
+      menuHowToPlayButton: document.getElementById('menuHowToPlayButton'),
+      optionsButton: document.getElementById('optionsButton'),
+      playAgainButton: document.getElementById('playAgainButton'),
+      mainMenuButton: document.getElementById('mainMenuButton')
+    };
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function pickRoundWords() {
+      return shuffle(WORD_BANK).slice(0, ROUND_WORDS).map((item, index) => ({
+        ...item,
+        id: index,
+        text: Math.random() < 0.5 ? item.en : item.es
+      }));
+    }
+
+    function createEmptyGrid() {
+      return Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
+    }
+
+    function canPlace(grid, word, row, col, dr, dc) {
+      for (let i = 0; i < word.length; i++) {
+        const r = row + dr * i;
+        const c = col + dc * i;
+        if (r < 0 || c < 0 || r >= GRID_SIZE || c >= GRID_SIZE) return false;
+        const existing = grid[r][c];
+        if (existing && existing !== word[i]) return false;
+      }
+      return true;
+    }
+
+    function placeWords() {
+      const grid = createEmptyGrid();
+      const roundWords = pickRoundWords().sort((a, b) => b.text.length - a.text.length);
+      const placements = [];
+
+      for (const wordObj of roundWords) {
+        let placed = false;
+        const tries = shuffle(Array.from({ length: 180 }, (_, i) => i));
+        for (const _ of tries) {
+          const [dr, dc] = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
+          const row = Math.floor(Math.random() * GRID_SIZE);
+          const col = Math.floor(Math.random() * GRID_SIZE);
+          const word = wordObj.text.toUpperCase();
+          if (!canPlace(grid, word, row, col, dr, dc)) continue;
+          const cells = [];
+          for (let i = 0; i < word.length; i++) {
+            const r = row + dr * i;
+            const c = col + dc * i;
+            grid[r][c] = word[i];
+            cells.push(r + '-' + c);
+          }
+          placements.push({ ...wordObj, cells, text: word });
+          placed = true;
+          break;
+        }
+        if (!placed) return placeWords();
+      }
+
+      const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (!grid[r][c]) grid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
+        }
+      }
+      return { grid, placements };
+    }
+
+    function renderWordList() {
+      el.wordList.innerHTML = '';
+      state.gridWords.forEach(word => {
+        const chip = document.createElement('div');
+        chip.className = 'wordChip' + (state.foundWords.has(word.text) ? ' found' : '');
+        chip.textContent = word.text;
+        el.wordList.appendChild(chip);
+      });
+    }
+
+    function currentLessonWord() {
+      return state.gridWords.find(w => !state.foundWords.has(w.text)) || state.gridWords[0];
+    }
+
+    function renderLessonCard() {
+      const word = currentLessonWord();
+      if (!word) return;
+      el.focusWord.textContent = word.text;
+      el.focusTranslation.textContent = word.text === word.en ? 'Spanish: ' + word.es : 'English: ' + word.en;
+      el.focusDefinition.textContent = 'Definition: ' + word.definition;
+      const englishSentence = typeof word.sentence === 'object' ? word.sentence.en : word.sentence;
+      const spanishSentence = typeof word.sentence === 'object' ? word.sentence.es : '';
+      el.focusSentence.innerHTML = 'Sentence (EN): ' + englishSentence + (spanishSentence ? '<br>Oración (ES): ' + spanishSentence : '');
+      el.progressTag.textContent = state.foundWords.size + '/' + state.gridWords.length + ' words found';
+    }
+
+    function renderTrace() {
+      if (!el.traceLayer || !el.tracePath || !el.tracePathOuter) return;
+      if (state.selectedPath.length < 2) {
+        el.tracePath.setAttribute('d', '');
+        el.tracePathOuter.setAttribute('d', '');
+        return;
+      }
+      const gridRect = el.grid.getBoundingClientRect();
+      const points = state.selectedPath.map((key) => {
+        const [r, c] = key.split('-').map(Number);
+        const cell = el.grid.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+        if (!cell) return null;
+        const rect = cell.getBoundingClientRect();
+        return {
+          x: rect.left - gridRect.left + rect.width / 2,
+          y: rect.top - gridRect.top + rect.height / 2
+        };
+      }).filter(Boolean);
+      if (points.length < 2) {
+        el.tracePath.setAttribute('d', '');
+        el.tracePathOuter.setAttribute('d', '');
+        return;
+      }
+      const d = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+      el.traceLayer.setAttribute('viewBox', `0 0 ${Math.max(1, gridRect.width)} ${Math.max(1, gridRect.height)}`);
+      el.tracePath.setAttribute('d', d);
+      el.tracePathOuter.setAttribute('d', d);
+    }
+
+    function renderGrid() {
+      const traceMarkup = el.traceLayer ? el.traceLayer.outerHTML : '';
+      el.grid.innerHTML = traceMarkup;
+      el.traceLayer = document.getElementById('traceLayer');
+      el.tracePath = document.getElementById('tracePath');
+      el.tracePathOuter = document.getElementById('tracePathOuter');
+      if (!Array.isArray(state.gridLetters) || state.gridLetters.length !== GRID_SIZE || state.gridLetters.some(row => !Array.isArray(row) || row.length !== GRID_SIZE)) {
+        renderTrace();
+        return;
+      }
+      const selectedSet = new Set(state.selectedPath.filter(key => {
+        const [r, c] = key.split('-').map(Number);
+        return state.gridLetters[r] && typeof state.gridLetters[r][c] === 'string';
+      }));
+      const foundCells = new Set(state.gridWords.filter(w => state.foundWords.has(w.text)).flatMap(w => w.cells));
+      const justFoundCells = new Set(state.gridWords.filter(w => w.justFound).flatMap(w => w.cells));
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const key = r + '-' + c;
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          if (selectedSet.has(key)) cell.classList.add('active');
+          if (foundCells.has(key)) cell.classList.add('found');
+          if (justFoundCells.has(key)) cell.classList.add('success-pulse');
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.textContent = state.gridLetters[r][c];
+          el.grid.appendChild(cell);
+        }
+      }
+      renderTrace();
+    }
+    
+    function scrambleLetters() {
+      if (state.ended || state.paused || state.showingHowToPlay) return;
+      
+      // Get all letters from the grid
+      const letters = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          letters.push(state.gridLetters[r][c]);
+        }
+      }
+      
+      // Shuffle the letters
+      const shuffled = shuffle(letters);
+      
+      // Put them back in the grid
+      let index = 0;
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          state.gridLetters[r][c] = shuffled[index++];
+        }
+      }
+      
+      // Add flash animation to all cells
+      const cells = el.grid.querySelectorAll('.cell');
+      cells.forEach(cell => {
+        cell.classList.add('scramble-flash');
+        setTimeout(() => cell.classList.remove('scramble-flash'), 500);
+      });
+      
+      // Clear selection
+      state.selectedPath = [];
+      renderGrid();
+      
+      // Haptic feedback
+      triggerHaptic('medium');
+    }
+
+    function updateHud() {
+      if (el.movesBox) {
+        el.movesBox.innerHTML = 'Moves<br><strong>' + state.movesLeft + '</strong>';
+      }
+      // Update level indicator
+      const levelText = document.getElementById('levelText');
+      if (levelText) {
+        levelText.textContent = 'Level ' + state.level;
+      }
+    }
+
+    function updateSafeArea() {
+      const inset = state.viewContext === 'full_screen' ? state.safeArea : { top: 0, right: 0, bottom: 0, left: 0 };
+      document.getElementById('app').style.paddingTop = (14 + inset.top) + 'px';
+      document.getElementById('app').style.paddingRight = (14 + inset.right) + 'px';
+      document.getElementById('app').style.paddingBottom = (14 + inset.bottom) + 'px';
+      document.getElementById('app').style.paddingLeft = (14 + inset.left) + 'px';
+    }
+
+    function toggleTheme() {
+      state.darkMode = !state.darkMode;
+      document.body.classList.toggle('dark-mode', state.darkMode);
+      // Update the theme icon in Options screen based on theme
+      const themeIconUrl = state.darkMode 
+        ? 'graphics/crescent_mo.webp'
+        : 'graphics/sun_icon.webp';
+      if (el.optionsThemeIcon) {
+        el.optionsThemeIcon.src = themeIconUrl;
+      }
+      // Update the pause icon based on theme
+      const pauseIconUrl = state.darkMode
+        ? 'graphics/big_white_pause_ic.webp'
+        : 'graphics/big_black_pause_ic.webp';
+      const pauseIcon = document.getElementById('pauseIcon');
+      if (pauseIcon) {
+        pauseIcon.src = pauseIconUrl;
+        pauseIcon.style.width = '30px';
+        pauseIcon.style.height = '30px';
+      }
+      // Save theme preference to Remix SDK
+      if (window.RemixSDK && window.RemixSDK.saveGameState) {
+        window.RemixSDK.saveGameState({ darkMode: state.darkMode });
+      }
+    }
+
+    function startTimer() {
+      // Timer not used - moves system instead
+    }
+
+    function resetRound() {
+      clearInterval(state.timerId);
+      state.level = 1;
+      state.totalWordsFound = 0;
+      state.movesLeft = MAX_MOVES;
+      state.foundWords = new Set();
+      state.selectedPath = [];
+      state.dragging = false;
+      state.ended = false;
+      state.paused = false;
+      state.showingHowToPlay = false;
+      state.lastOverlayBeforeHowTo = null;
+      state.gridLetters = [];
+      state.gridWords = [];
+      const { grid, placements } = placeWords();
+      state.gridLetters = grid;
+      state.gridWords = placements;
+      el.overlay.classList.remove('show');
+      el.pauseOverlay.classList.remove('show');
+      el.howToPlayOverlay.classList.remove('show');
+      el.mainMenuOverlay.classList.remove('show');
+      
+      // Stop main menu music when game starts
+      // Main menu music removed
+      
+      // Show game elements
+      el.hud.style.display = 'flex';
+      document.getElementById('gameArea').style.display = 'flex';
+      
+      renderWordList();
+      renderLessonCard();
+      renderGrid();
+      updateHud();
+      el.hintText.textContent = '';
+    }
+
+    function showLevelPopup(text) {
+      el.levelPopup.textContent = text;
+      el.levelPopup.classList.add('show');
+      setTimeout(() => {
+        el.levelPopup.classList.remove('show');
+      }, 1200);
+    }
+
+    function nextLevel() {
+      state.level++;
+      state.foundWords = new Set();
+      state.selectedPath = [];
+      state.dragging = false;
+      state.ended = false;
+      state.paused = false;
+      state.showingHowToPlay = false;
+      state.gridLetters = [];
+      state.gridWords = [];
+      const { grid, placements } = placeWords();
+      state.gridLetters = grid;
+      state.gridWords = placements;
+      el.overlay.classList.remove('show');
+      el.pauseOverlay.classList.remove('show');
+      el.howToPlayOverlay.classList.remove('show');
+      
+      // Ensure game elements are visible
+      el.hud.style.display = 'flex';
+      document.getElementById('gameArea').style.display = 'flex';
+      
+      renderWordList();
+      renderLessonCard();
+      renderGrid();
+      updateHud();
+      el.hintText.textContent = '';
+      showLevelPopup('Level ' + state.level);
+    }
+
+    function triggerHaptic(type) {
+      if (window.RemixSDK && window.RemixSDK.hapticFeedback) {
+        window.RemixSDK.hapticFeedback(type);
+      }
+    }
+
+    function playWordFoundSound() {
+      if (state.muted) return;
+      if (!state.wordFoundAudio) {
+        // Create audio if it doesn't exist
+        state.wordFoundAudio = new Audio('sfx/word_found.mp3');
+        state.wordFoundAudio.preload = 'auto';
+      }
+      try {
+        state.wordFoundAudio.currentTime = 0;
+        state.wordFoundAudio.volume = 0.35;
+        state.wordFoundAudio.play().catch(() => {});
+      } catch (e) {
+        // Ignore playback errors
+      }
+    }
+
+    function ensureAudioUnlocked() {
+      if (!state.wordFoundAudio) return;
+      try {
+        state.wordFoundAudio.muted = false;
+        state.wordFoundAudio.play().then(() => {
+          state.wordFoundAudio.pause();
+          state.wordFoundAudio.currentTime = 0;
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    function playButtonClickSound() {
+      if (state.muted) return;
+      if (!state.buttonClickAudio) {
+        state.buttonClickAudio = new Audio('sfx/button_click.mp3');
+        state.buttonClickAudio.preload = 'auto';
+        state.buttonClickAudio.volume = 0.5; // Balanced volume
+      }
+      try {
+        state.buttonClickAudio.currentTime = 0;
+        state.buttonClickAudio.play().catch(() => {});
+      } catch (e) {}
+    }
+
+    function checkSelection() {
+      if (!Array.isArray(state.gridLetters) || state.gridLetters.length !== GRID_SIZE) {
+        state.selectedPath = [];
+        renderGrid();
+        return;
+      }
+
+      const validPath = state.selectedPath.filter(key => {
+        const [r, c] = key.split('-').map(Number);
+        return state.gridLetters[r] && typeof state.gridLetters[r][c] === 'string';
+      });
+
+      const joined = validPath.map(key => {
+        const [r, c] = key.split('-').map(Number);
+        return state.gridLetters[r][c];
+      }).join('');
+      const reversed = joined.split('').reverse().join('');
+      const matched = state.gridWords.find(w => !state.foundWords.has(w.text) && (w.text === joined || w.text === reversed));
+      if (matched) {
+        state.foundWords.add(matched.text);
+        state.totalWordsFound++;
+        matched.justFound = true;
+        triggerHaptic('success');
+        playWordFoundSound();
+        // showLevelPopup('+100'); // Removed since no score HUD
+        el.hintText.textContent = '';
+        renderWordList();
+        renderLessonCard();
+        renderGrid();
+        updateHud();
+        setTimeout(() => {
+          matched.justFound = false;
+          renderGrid();
+        }, 400);
+        if (state.foundWords.size === state.gridWords.length) {
+          setTimeout(() => {
+            nextLevel();
+          }, 500);
+        }
+      } else {
+        // Wrong guess - decrement moves
+        state.movesLeft--;
+        updateHud();
+        if (state.movesLeft <= 0) {
+          endGame(false, false);
+        }
+      }
+      state.selectedPath = [];
+      renderGrid();
+    }
+
+    function neighborsLineOnly(nextKey) {
+      if (state.selectedPath.length < 2) return true;
+      const [r1, c1] = state.selectedPath[0].split('-').map(Number);
+      const [r2, c2] = state.selectedPath[1].split('-').map(Number);
+      const [rn, cn] = nextKey.split('-').map(Number);
+      const dr = Math.sign(r2 - r1);
+      const dc = Math.sign(c2 - c1);
+      const [rp, cp] = state.selectedPath[state.selectedPath.length - 1].split('-').map(Number);
+      return rn - rp === dr && cn - cp === dc;
+    }
+
+    function handleCellFromPoint(x, y) {
+      if (state.ended || state.paused || state.showingHowToPlay) return;
+      const target = document.elementFromPoint(x, y);
+      if (!target || !target.classList.contains('cell')) return;
+      const key = target.dataset.row + '-' + target.dataset.col;
+      if (state.selectedPath.includes(key)) return;
+      if (state.selectedPath.length > 0) {
+        const [pr, pc] = state.selectedPath[state.selectedPath.length - 1].split('-').map(Number);
+        const [nr, nc] = key.split('-').map(Number);
+        const dr = Math.abs(nr - pr);
+        const dc = Math.abs(nc - pc);
+        if (Math.max(dr, dc) !== 1) return;
+        if (!neighborsLineOnly(key)) return;
+      }
+      state.selectedPath.push(key);
+      renderGrid();
+    }
+
+    function endGame(completedAll = false, timeUp = false) {
+      if (state.ended) return;
+      state.ended = true;
+      state.paused = false;
+      state.showingHowToPlay = false;
+      clearInterval(state.timerId);
+      triggerHaptic(completedAll ? 'success' : 'medium');
+      el.finalScore.textContent = state.totalWordsFound;
+      if (state.movesLeft <= 0) {
+        el.finalMessage.innerHTML = 'Out of Moves<br>Words Found: ' + state.totalWordsFound + '<br>Palabras Encontradas: ' + state.totalWordsFound;
+      } else {
+        el.finalMessage.innerHTML = 'Great session!<br>Words Found: ' + state.totalWordsFound + '<br>Palabras Encontradas: ' + state.totalWordsFound;
+      }
+      el.pauseOverlay.classList.remove('show');
+      el.howToPlayOverlay.classList.remove('show');
+      el.mainMenuOverlay.classList.remove('show');
+      el.overlay.classList.add('show');
+      
+      // Hide game elements
+      el.hud.style.display = 'none';
+      document.getElementById('gameArea').style.display = 'none';
+      
+      updateHud();
+      if (window.RemixSDK && window.RemixSDK.saveGameState) {
+        window.RemixSDK.saveGameState({ darkMode: !!state.darkMode });
+      }
+      // window.RemixSDK.singlePlayer.actions.gameOver({ score: state.totalWordsFound });
+      return;
+    }
+
+    function openPauseMenu() {
+      if (state.ended || state.showingHowToPlay) return;
+      state.paused = true;
+      state.dragging = false;
+      state.selectedPath = [];
+      renderGrid();
+      el.pauseOverlay.classList.add('show');
+      
+      // Ensure game elements are visible
+      el.hud.style.display = 'flex';
+      document.getElementById('gameArea').style.display = 'flex';
+    }
+
+    function resumeGame() {
+      state.paused = false;
+      state.showingHowToPlay = false;
+      state.lastOverlayBeforeHowTo = null;
+      el.pauseOverlay.classList.remove('show');
+      el.howToPlayOverlay.classList.remove('show');
+      
+      // Ensure game elements are visible
+      el.hud.style.display = 'flex';
+      document.getElementById('gameArea').style.display = 'flex';
+    }
+
+    function openHowToPlay() {
+      state.showingHowToPlay = true;
+      state.lastOverlayBeforeHowTo = state.paused ? 'pause' : 'menu';
+      el.pauseOverlay.classList.remove('show');
+      el.howToPlayOverlay.classList.add('show');
+      el.mainMenuOverlay.classList.remove('show');
+      if (!state.paused) {
+        el.hud.style.display = 'none';
+        document.getElementById('gameArea').style.display = 'none';
+      }
+    }
+
+    function closeHowToPlay() {
+      state.showingHowToPlay = false;
+      el.howToPlayOverlay.classList.remove('show');
+      if (state.lastOverlayBeforeHowTo === 'pause') {
+        el.pauseOverlay.classList.add('show');
+        el.hud.style.display = 'flex';
+        document.getElementById('gameArea').style.display = 'flex';
+      } else {
+        el.mainMenuOverlay.classList.add('show');
+        el.hud.style.display = 'none';
+        document.getElementById('gameArea').style.display = 'none';
+      }
+      state.lastOverlayBeforeHowTo = null;
+    }
+
+    function openOptions() {
+      state.showingHowToPlay = true; // Reuse this flag to prevent game input
+      state.lastOverlayBeforeHowTo = state.paused ? 'pause' : 'menu';
+      el.pauseOverlay.classList.remove('show');
+      el.optionsOverlay.classList.add('show');
+      el.mainMenuOverlay.classList.remove('show');
+      if (!state.paused) {
+        el.hud.style.display = 'none';
+        document.getElementById('gameArea').style.display = 'none';
+      }
+    }
+
+    function closeOptions() {
+      state.showingHowToPlay = false;
+      el.optionsOverlay.classList.remove('show');
+      if (state.lastOverlayBeforeHowTo === 'pause') {
+        el.pauseOverlay.classList.add('show');
+        el.hud.style.display = 'flex';
+        document.getElementById('gameArea').style.display = 'flex';
+      } else {
+        el.mainMenuOverlay.classList.add('show');
+        el.hud.style.display = 'none';
+        document.getElementById('gameArea').style.display = 'none';
+      }
+      state.lastOverlayBeforeHowTo = null;
+    }
+
+    function bindInput() {
+      el.grid.addEventListener('pointerdown', (e) => {
+        if (state.ended || state.paused || state.showingHowToPlay) return;
+        state.dragging = true;
+        state.selectedPath = [];
+        handleCellFromPoint(e.clientX, e.clientY);
+      });
+      window.addEventListener('pointermove', (e) => {
+        if (!state.dragging || state.ended || state.paused || state.showingHowToPlay) return;
+        handleCellFromPoint(e.clientX, e.clientY);
+      });
+      window.addEventListener('pointerup', () => {
+        if (!state.dragging) return;
+        state.dragging = false;
+        checkSelection();
+      });
+      window.addEventListener('pointercancel', () => {
+        state.dragging = false;
+        state.selectedPath = [];
+        renderGrid();
+      });
+      
+
+      if (el.pauseButton) {
+        el.pauseButton.addEventListener('click', openPauseMenu);
+      }
+      if (el.scrambleButton) {
+        el.scrambleButton.addEventListener('click', scrambleLetters);
+      }
+      if (el.resumeButton) {
+        el.resumeButton.addEventListener('click', resumeGame);
+      }
+      const pauseMainMenuButton = document.getElementById('pauseMainMenuButton');
+      if (pauseMainMenuButton) {
+        pauseMainMenuButton.addEventListener('click', () => {
+          // Hide game elements
+          el.hud.style.display = 'none';
+          document.getElementById('gameArea').style.display = 'none';
+          // Hide overlays and show main menu
+          el.pauseOverlay.classList.remove('show');
+          el.mainMenuOverlay.classList.add('show');
+          // Main menu music removed
+        });
+      }
+      if (el.backFromHowToButton) {
+        el.backFromHowToButton.addEventListener('click', () => {
+          playButtonClickSound();
+          closeHowToPlay();
+          // If we came from the main menu, return to main menu
+          if (!state.paused) {
+            el.mainMenuOverlay.classList.add('show');
+          }
+        });
+      }
+      if (el.backFromOptionsButton) {
+        el.backFromOptionsButton.addEventListener('click', () => {
+          playButtonClickSound();
+          closeOptions();
+          // If we came from the main menu, return to main menu
+          if (!state.paused) {
+            el.mainMenuOverlay.classList.add('show');
+          }
+        });
+      }
+      if (el.startButton) {
+        el.startButton.addEventListener('click', () => {
+          playButtonClickSound();
+          ensureAudioUnlocked();
+          // Main menu music removed as requested
+          resetRound();
+        });
+      }
+      if (el.menuHowToPlayButton) {
+        el.menuHowToPlayButton.addEventListener('click', () => {
+          playButtonClickSound();
+          openHowToPlay();
+        });
+      }
+      if (el.optionsButton) {
+        el.optionsButton.addEventListener('click', () => {
+          playButtonClickSound();
+          openOptions();
+        });
+      }
+      if (el.optionsThemeToggle) {
+        el.optionsThemeToggle.addEventListener('click', toggleTheme);
+      }
+      if (el.playAgainButton) {
+        el.playAgainButton.addEventListener('click', () => {
+          playButtonClickSound();
+          resetRound();
+        });
+      }
+      if (el.mainMenuButton) {
+        el.mainMenuButton.addEventListener('click', () => {
+          playButtonClickSound();
+          // Hide game elements
+          el.hud.style.display = 'none';
+          document.getElementById('gameArea').style.display = 'none';
+          // Hide other overlays and show main menu
+          el.overlay.classList.remove('show');
+          el.pauseOverlay.classList.remove('show');
+          el.howToPlayOverlay.classList.remove('show');
+          el.mainMenuOverlay.classList.add('show');
+          // Main menu music removed as requested
+        });
+      }
+      if (el.resumeButton) {
+        el.resumeButton.addEventListener('click', () => {
+          playButtonClickSound();
+          resumeGame();
+        });
+      }
+
+    }
+
+    async function initSDK() {
+      // Hide game elements initially
+      el.hud.style.display = 'none';
+      document.getElementById('gameArea').style.display = 'none';
+      
+      if (!window.RemixSDK) {
+        state.wordFoundAudio = new Audio('sfx/word_found.mp3');
+        state.wordFoundAudio.preload = 'auto';
+        
+        // Show sun icon for light mode by default
+        const iconUrl = 'graphics/sun_icon.webp';
+        if (el.optionsThemeIcon) {
+          el.optionsThemeIcon.src = iconUrl;
+        }
+        state.level = 1;
+        // Show main menu instead of starting immediately
+        el.mainMenuOverlay.classList.add('show');
+        return;
+      }
+      await window.RemixSDK.ready();
+      state.sdkReady = true;
+      state.wordFoundAudio = new Audio('sfx/word_found.mp3');
+      state.wordFoundAudio.preload = 'auto';
+      
+      // Main menu music removed as requested
+      
+      // Load saved theme preference from Remix SDK
+      try {
+        const savedState = await window.RemixSDK.getGameState();
+        if (savedState && savedState.darkMode) {
+          state.darkMode = true;
+          document.body.classList.add('dark-mode');
+          const iconUrl = 'graphics/crescent_mo.webp';
+          if (el.optionsThemeIcon) {
+            el.optionsThemeIcon.src = iconUrl;
+          }
+        } else {
+          const iconUrl = 'graphics/sun_icon.webp';
+          if (el.optionsThemeIcon) {
+            el.optionsThemeIcon.src = iconUrl;
+          }
+        }
+      } catch (e) {
+        // No saved state yet, continue with default
+      }
+      
+      const info = window.RemixSDK.gameInfo || {};
+      state.viewContext = info.viewContext || 'feed';
+      state.safeArea = info.contentSafeAreaInset || { top: 0, right: 0, bottom: 0, left: 0 };
+      updateSafeArea();
+
+      if (window.RemixSDK.onGameInfo) {
+        window.RemixSDK.onGameInfo((nextInfo) => {
+          state.viewContext = nextInfo.viewContext || 'feed';
+          state.safeArea = nextInfo.contentSafeAreaInset || { top: 0, right: 0, bottom: 0, left: 0 };
+          updateSafeArea();
+        });
+      }
+
+      // window.RemixSDK.onPlayAgain(() => {
+      //   resetRound();
+      // });
+
+      window.RemixSDK.onToggleMute(({ isMuted }) => {
+        state.muted = !!isMuted;
+      });
+
+      state.level = 1;
+      // Show main menu instead of starting immediately
+      el.mainMenuOverlay.classList.add('show');
+    }
+
+    bindInput();
+    window.addEventListener('resize', () => {
+      renderTrace();
+    });
+    initSDK();
+  </script>
+</body>
+</html>
